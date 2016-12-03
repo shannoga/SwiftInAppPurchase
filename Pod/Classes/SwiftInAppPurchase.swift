@@ -9,13 +9,13 @@
 import Foundation
 import StoreKit
 
-public class SwiftInAppPurchase: NSObject {
+open class SwiftInAppPurchase: NSObject {
     
-    public static let sharedInstance = SwiftInAppPurchase()
+    open static let sharedInstance = SwiftInAppPurchase()
     
-    public let productRequestHandler:ProductRequestHandler
-    public let paymentRequestHandler:PaymentRequestHandler
-    public let receiptRequestHandler:ReceiptRequestHandler
+    open let productRequestHandler:ProductRequestHandler
+    open let paymentRequestHandler:PaymentRequestHandler
+    open let receiptRequestHandler:ReceiptRequestHandler
     
     override init() {
         self.productRequestHandler = ProductRequestHandler.init()
@@ -26,44 +26,44 @@ public class SwiftInAppPurchase: NSObject {
     
     deinit{
     }
-    public func setProductionMode(isProduction:Bool){
+    open func setProductionMode(_ isProduction:Bool){
         self.receiptRequestHandler.isProduction = isProduction
     }
-    public func canMakePayments() -> Bool {
+    open func canMakePayments() -> Bool {
         return SKPaymentQueue.canMakePayments()
     }
-    public func receiptURL() -> NSURL {
-        return self.receiptRequestHandler.receiptURL()
+    open func receiptURL() -> URL {
+        return self.receiptRequestHandler.receiptURL() as URL
     }
     
     //  MARK: - Product
-    public func productForIdentifier(productIdentifier:String) -> SKProduct{
+    open func productForIdentifier(_ productIdentifier:String) -> SKProduct{
         return self.productRequestHandler.products[productIdentifier]!
     }
-    public func requestProducts(productIDS:Set<String>,completion:RequestProductCallback){
+    open func requestProducts(_ productIDS:Set<String>,completion:@escaping RequestProductCallback){
         self.productRequestHandler.requestProduc(productIDS, requestCallback: completion)
     }
     //  MARK: - Purchase
-    public func addPayment(productIDS: String,userIdentifier:String?, addPaymentCallback: AddPaymentCallback){
+    open func addPayment(_ productIDS: String,userIdentifier:String?, addPaymentCallback: @escaping AddPaymentCallback){
         let product = self.productRequestHandler.products[productIDS]
         if product != nil {
             self.paymentRequestHandler.addPayment(product!, userIdentifier: userIdentifier, addPaymentCallback: addPaymentCallback)
         }else{
-            addPaymentCallback(result:.Failed(error: NSError.init(domain: "AddPayment Unknow Product identifier", code: 0, userInfo: nil)))
+            addPaymentCallback(.failed(error: NSError.init(domain: "AddPayment Unknow Product identifier", code: 0, userInfo: nil)))
         }
     }
     //  MARK: - Restore
-    public func restoreTransaction(userIdentifier:String?,addPaymentCallback: AddPaymentCallback){
+    open func restoreTransaction(_ userIdentifier:String?,addPaymentCallback: @escaping AddPaymentCallback){
         self.paymentRequestHandler.restoreTransaction(userIdentifier, addPaymentCallback: addPaymentCallback)
     }
-    public func checkIncompleteTransaction(addPaymentCallback: AddPaymentCallback){
+    open func checkIncompleteTransaction(_ addPaymentCallback: @escaping AddPaymentCallback){
         self.paymentRequestHandler.checkIncompleteTransaction(addPaymentCallback)
     }
     //  MARK: - Receipt
-    public func refreshReceipt(requestCallback: RequestReceiptCallback){
+    open func refreshReceipt(_ requestCallback: @escaping RequestReceiptCallback){
         self.receiptRequestHandler.refreshReceipt(requestCallback)
     }
-    public func verifyReceipt(autoRenewableSubscriptionsPassword:String?,receiptVerifyCallback:ReceiptVerifyCallback){
+    open func verifyReceipt(_ autoRenewableSubscriptionsPassword:String?,receiptVerifyCallback:@escaping ReceiptVerifyCallback){
         self.receiptRequestHandler.verifyReceipt(autoRenewableSubscriptionsPassword, receiptVerifyCallback: receiptVerifyCallback)
     }
 }

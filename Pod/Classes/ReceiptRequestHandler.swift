@@ -7,16 +7,16 @@
 //
 import StoreKit
 
-public typealias RequestReceiptCallback = (error:NSError?) -> ()
-public typealias ReceiptVerifyCallback = (receipt:NSDictionary?,error:NSError?) -> ()
+public typealias RequestReceiptCallback = (_ error:NSError?) -> ()
+public typealias ReceiptVerifyCallback = (_ receipt:NSDictionary?,_ error:NSError?) -> ()
 
 let productionVerifyURL = "http://buy.itunes.apple.com/verifyReceipt"
 let sandboxVerifyURL = "https://sandbox.itunes.apple.com/verifyReceipt"
 
-public class ReceiptRequestHandler: NSObject ,SKRequestDelegate{
+open class ReceiptRequestHandler: NSObject ,SKRequestDelegate{
 
-    private var requestCallback: RequestReceiptCallback?
-    private var receiptVerifyCallback: ReceiptVerifyCallback?
+    fileprivate var requestCallback: RequestReceiptCallback?
+    fileprivate var receiptVerifyCallback: ReceiptVerifyCallback?
     var isProduction:Bool
     
     override init() {
@@ -27,58 +27,56 @@ public class ReceiptRequestHandler: NSObject ,SKRequestDelegate{
     deinit {
         
     }
-    func receiptURL() -> NSURL {
-        return NSBundle.mainBundle().appStoreReceiptURL!
+    func receiptURL() -> URL {
+        return Bundle.main.appStoreReceiptURL!
     }
     
-    func refreshReceipt(requestCallback: RequestReceiptCallback){
+    func refreshReceipt(_ requestCallback: @escaping RequestReceiptCallback){
         self.requestCallback = requestCallback
         let receiptRequest = SKReceiptRefreshRequest.init(receiptProperties: nil)
         receiptRequest.delegate = self
         receiptRequest.start()
     }
 
-    public func requestDidFinish(request: SKRequest) {
-       requestCallback!(error: nil)
+    open func requestDidFinish(_ request: SKRequest) {
+       requestCallback!(nil)
     }
-    public func request(request: SKRequest, didFailWithError error: NSError) {
-        requestCallback!(error: error)
+    open func request(_ request: SKRequest, didFailWithError error: Error) {
+        requestCallback!(error as NSError?)
     }
 
-    func verifyReceipt(autoRenewableSubscriptionsPassword:String?,receiptVerifyCallback:ReceiptVerifyCallback){
+    func verifyReceipt(_ autoRenewableSubscriptionsPassword:String?,receiptVerifyCallback:@escaping ReceiptVerifyCallback){
         self.receiptVerifyCallback = receiptVerifyCallback
         
-        let session = NSURLSession.sharedSession()
-        let receipt = NSData.init(contentsOfURL: self.receiptURL())
+        let session = URLSession.shared
+        let receipt = try? Data.init(contentsOf: self.receiptURL())
 
-        let requestContents :NSMutableDictionary = [ "receipt-data" : (receipt?.base64EncodedStringWithOptions(NSDataBase64EncodingOptions(rawValue: 0)))!]
+        let requestContents :NSMutableDictionary = [ "receipt-data" : (receipt?.base64EncodedString(options: NSData.Base64EncodingOptions(rawValue: 0)))!]
         
         if (autoRenewableSubscriptionsPassword != nil) {
             requestContents.setValue(autoRenewableSubscriptionsPassword, forKey: "password")
         }
         
-        let storeURL = NSURL.init(string: isProduction ? productionVerifyURL:sandboxVerifyURL)
+        let storeURL = URL.init(string: isProduction ? productionVerifyURL:sandboxVerifyURL)
         
-        let storeRequest = NSMutableURLRequest.init(URL: storeURL!)
+        let storeRequest = NSMutableURLRequest.init(url: storeURL!)
         
         do {
-            storeRequest.HTTPBody = try NSJSONSerialization.dataWithJSONObject(requestContents, options: [])
+            storeRequest.httpBody = try JSONSerialization.data(withJSONObject: requestContents, options: [])
         } catch {
             
             print(error)
-            receiptVerifyCallback(receipt: nil, error: NSError.init(domain: "JsonError", code: 0, userInfo: nil))
+            receiptVerifyCallback(nil, NSError.init(domain: "JsonError", code: 0, userInfo: nil))
             return
         }
         
-        storeRequest.HTTPMethod = "POST"
-        
-
-        let task = session.dataTaskWithRequest(storeRequest, completionHandler: {data, response, error -> Void in
+        storeRequest.httpMethod = "POST"
+        let task = session.dataTask(with: storeRequest, completionHandler: {data, response, error -> Void in
             
             guard error == nil else { return }
             let json: NSDictionary?
             do {
-                json = try NSJSONSerialization.JSONObjectWithData(data!, options: .MutableLeaves) as? NSDictionary
+                json = try JSONSerialization.jsonObject(with: data!, options: .mutableLeaves) as? NSDictionary
             } catch let dataError {
                 print(dataError)
                 receiptVerifyCallback(receipt: nil, error: NSError.init(domain: "JsonError", code: 0, userInfo: nil))
@@ -92,7 +90,7 @@ public class ReceiptRequestHandler: NSObject ,SKRequestDelegate{
             
             }
             else {
-                let jsonStr = NSString(data: data!, encoding: NSUTF8StringEncoding)
+                let jsonStr = NSString(data: data!, encoding: String.Encoding.utf8)
                 print("Error could not parse JSON: \(jsonStr)")
                 
                 receiptVerifyCallback(receipt: nil, error: error)
